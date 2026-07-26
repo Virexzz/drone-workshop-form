@@ -4,7 +4,14 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+
+// Configure CORS for production and local dev
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://your-vercel-app.vercel.app'],
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+
 app.use(express.json());
 
 const supabase = createClient(
@@ -19,21 +26,25 @@ app.get('/api/capacity', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('registrations')
-      .select('seats_count');
+      .select('registration_type');
 
     if (error) throw error;
 
-    const totalSeatsTaken = data.reduce((sum, item) => sum + item.seats_count, 0);
+    // Dynamically calculate taken seats based on registration_type
+    const totalSeatsTaken = (data || []).reduce((sum, item) => {
+      return sum + (item.registration_type === 'In a team' ? 5 : 1);
+    }, 0);
+
     const availableSeats = Math.max(0, MAX_SEATS - totalSeatsTaken);
 
     res.json({
       totalSeatsTaken,
       availableSeats,
-      // Automatically disable Team option when taken >= 36 (i.e. remaining seats < 5)
       allowTeamRegistration: totalSeatsTaken <= 35 && availableSeats >= 5,
       isClosed: totalSeatsTaken >= MAX_SEATS
     });
   } catch (err) {
+    console.error('Capacity Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -44,14 +55,16 @@ app.post('/api/register', async (req, res) => {
   const seatsRequested = registration_type === 'In a team' ? 5 : 1;
 
   try {
-    // 1. Double check current capacity before inserting to avoid race conditions
+    // 1. Fetch current registrations to check capacity
     const { data, error: fetchError } = await supabase
       .from('registrations')
-      .select('seats_count');
+      .select('registration_type');
 
     if (fetchError) throw fetchError;
 
-    const currentSeatsTaken = data.reduce((sum, item) => sum + item.seats_count, 0);
+    const currentSeatsTaken = (data || []).reduce((sum, item) => {
+      return sum + (item.registration_type === 'In a team' ? 5 : 1);
+    }, 0);
 
     if (currentSeatsTaken + seatsRequested > MAX_SEATS) {
       return res.status(400).json({
@@ -59,16 +72,17 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    // 2. Perform insertion
+    // 2. Perform insertion without seats_count property
     const { data: insertedData, error: insertError } = await supabase
       .from('registrations')
-      .insert([{ ...req.body, seats_count: seatsRequested }])
+      .insert([req.body])
       .select();
 
     if (insertError) throw insertError;
 
     res.status(201).json({ success: true, data: insertedData });
   } catch (err) {
+    console.error('Registration Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
