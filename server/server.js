@@ -7,6 +7,9 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 
+// Admin secret passkey for dashboard endpoints
+const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || 'rac-admin-2026';
+
 // Configure multer for memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -28,8 +31,8 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PATCH', 'OPTIONS'], // Included PATCH for status updates
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key'], // Allowed custom admin auth header
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -50,6 +53,15 @@ const supabase = createClient(
 );
 
 const MAX_SEATS = 40;
+
+// Admin Verification Middleware
+const verifyAdmin = (req, res, next) => {
+  const key = req.headers['x-admin-key'];
+  if (key !== ADMIN_SECRET_KEY) {
+    return res.status(403).json({ error: 'Forbidden: Invalid Admin Passkey' });
+  }
+  next();
+};
 
 // Helper function to upload file buffer to Supabase Storage
 async function uploadToSupabaseStorage(file, folderPrefix) {
@@ -76,6 +88,10 @@ async function uploadToSupabaseStorage(file, folderPrefix) {
 
   return publicUrlData.publicUrl;
 }
+
+// ==========================================
+// PUBLIC ENDPOINTS
+// ==========================================
 
 // GET: Calculate current live capacity
 app.get('/api/capacity', async (req, res) => {
@@ -205,6 +221,46 @@ app.post(
     }
   }
 );
+
+// ==========================================
+// ADMIN ENDPOINTS
+// ==========================================
+
+// GET: Retrieve all registrations for Admin Dashboard
+app.get('/api/admin/registrations', verifyAdmin, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('registrations')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Admin Fetch Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH: Toggle payment verification status
+app.patch('/api/admin/verify/:id', verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { is_verified } = req.body;
+
+  try {
+    const { data, error } = await supabase
+      .from('registrations')
+      .update({ is_verified })
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    res.json({ message: 'Verification status updated successfully', data });
+  } catch (err) {
+    console.error('Admin Verify Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Backend running on port ${PORT}`));

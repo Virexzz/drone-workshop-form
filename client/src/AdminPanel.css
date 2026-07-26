@@ -1,0 +1,164 @@
+.admin-login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+}
+
+.admin-dashboard {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background: #111827;
+  color: #e5e7eb;
+  border-radius: 12px;
+  border: 1px solid #374151;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.admin-controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-input {
+  background: #1f2937;
+  border: 1px solid #4b5563;
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  outline: none;
+  flex: 1;
+  min-width: 200px;
+}
+
+.admin-btn {
+  background: #f59e0b;
+  color: #000;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-btn-secondary {
+  background: #374151;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.admin-table th, .admin-table td {
+  padding: 0.85rem;
+  border-bottom: 1px solid #1f2937;
+}
+
+.admin-table th {
+  background: #1f2937;
+  color: #f3f4f6;
+  font-size: 0.85rem;
+}
+
+.sub-text {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  display: inline-block;
+  margin-right: 0.3rem;
+}
+
+.badge-success { background: #065f46; color: #34d399; }
+.badge-warning { background: #78350f; color: #fcd34d; }
+.badge-info { background: #1e3a8a; color: #93c5fd; }
+.badge-purple { background: #581c87; color: #e9d5ff; }
+
+.view-link-btn {
+  background: transparent;
+  border: 1px solid #3b82f6;
+  color: #60a5fa;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.action-btn {
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.btn-verify { background: #10b981; color: #000; }
+.btn-undo { background: #4b5563; color: #fff; }
+
+/* MODAL STYLES */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #1f2937;
+  padding: 1.5rem;
+  border-radius: 10px;
+  max-width: 500px;
+  width: 90%;
+  border: 1px solid #4b5563;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.preview-img {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: 6px;
+}
