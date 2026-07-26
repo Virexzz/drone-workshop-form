@@ -10,12 +10,11 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://rac-workshop.vercel.app' // Updated with your actual Vercel domain
+  'https://rac-workshop.vercel.app'
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (e.g. Postman, curl, server-to-server)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -31,7 +30,7 @@ const corsOptions = {
 // 1. Apply CORS middleware
 app.use(cors(corsOptions));
 
-// 2. Explicitly handle Preflight OPTIONS requests for all endpoints
+// 2. Explicitly handle Preflight OPTIONS requests
 app.options('*', cors(corsOptions));
 
 app.use(express.json());
@@ -53,7 +52,6 @@ app.get('/api/capacity', async (req, res) => {
 
     if (error) throw error;
 
-    // Dynamically calculate taken seats based on registration_type
     const totalSeatsTaken = (data || []).reduce((sum, item) => {
       return sum + (item.registration_type === 'In a team' ? 5 : 1);
     }, 0);
@@ -95,13 +93,28 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    // 2. Perform insertion
+    // 2. Explicitly extract and sanitize fields matching your DB schema columns
+    const payload = {
+      full_name: req.body.full_name || req.body.fullName,
+      email: req.body.email,
+      phone: req.body.phone,
+      college_name: req.body.college_name || req.body.collegeName,
+      registration_type: req.body.registration_type || req.body.registrationType
+    };
+
+    // 3. Perform insertion with sanitized payload
     const { data: insertedData, error: insertError } = await supabase
       .from('registrations')
-      .insert([req.body])
+      .insert([payload])
       .select();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      // Handle Duplicate Registration cleanly
+      if (insertError.code === '23505') {
+        return res.status(400).json({ error: 'This email is already registered.' });
+      }
+      throw insertError;
+    }
 
     res.status(201).json({ success: true, data: insertedData });
   } catch (err) {
