@@ -4,6 +4,17 @@ import './DroneWorkshopForm.css';
 import logo from './assets/rac-modified.png'; 
 import pay from './assets/done-QR.png';
 
+// Dynamic API Base URL determination without .env
+const getApiBaseUrl = () => {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:5000';
+  }
+  // Replace this string with your exact Render web service URL
+  return 'https://your-render-app-name.onrender.com';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
 export default function DroneWorkshopForm() {
   const [capacity, setCapacity] = useState({
     totalSeatsTaken: 0,
@@ -32,7 +43,7 @@ export default function DroneWorkshopForm() {
   // Fetch Live Capacity from Node.js Server
   const fetchCapacity = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/capacity');
+      const res = await axios.get(`${API_BASE_URL}/api/capacity`);
       setCapacity(res.data);
 
       // Dynamic fallback if Team option gets closed
@@ -72,7 +83,7 @@ export default function DroneWorkshopForm() {
         payment_slip_url: 'https://placeholder.com/slip.jpg'
       };
 
-      await axios.post('http://localhost:5000/api/register', payload);
+      await axios.post(`${API_BASE_URL}/api/register`, payload);
       setMessage('🎉 Registration Successful! Welcome to the workshop.');
       fetchCapacity();
     } catch (err) {
@@ -100,7 +111,7 @@ export default function DroneWorkshopForm() {
         {/* HERO BANNER SECTION */}
         <div className="card">
           <div className="banner-header">
-            <div className="logo-placeholder"><img src={logo}/></div>
+            <div className="logo-placeholder"><img src={logo} alt="RAC Logo" /></div>
             <div style={{ textAlign: 'right' }}>
               <h1 style={{ margin: 0, color: '#f59e0b', fontSize: '1.8rem' }}>DRONE WORKSHOP</h1>
               <span style={{ fontSize: '0.8rem', color: '#2fbfa6' }}>Robotics & Automation Center, Thapathali</span>
@@ -287,7 +298,7 @@ export default function DroneWorkshopForm() {
               <p style={{ fontSize: '0.85rem' }}>Scan QR code to pay via eSewa:</p>
               
               <div className="qr-placeholder-box">
-                <img src={pay}/>
+                <img src={pay} alt="Payment QR Code" />
                 <span style={{ fontSize: '1rem', color: '#9ca3af', marginTop: '0.5rem' }}>Saroj Gaire</span>
               </div>
 
