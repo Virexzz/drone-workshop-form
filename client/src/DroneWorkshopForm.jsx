@@ -9,7 +9,6 @@ const getApiBaseUrl = () => {
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return 'http://localhost:5000';
   }
-  // Replace this string with your exact Render web service URL
   return 'https://drone-workshop-form.onrender.com';
 };
 
@@ -37,6 +36,10 @@ export default function DroneWorkshopForm() {
     watch_doomsday: 'Yes'
   });
 
+  // Dedicated states for raw file handles
+  const [paymentSlipFile, setPaymentSlipFile] = useState(null);
+  const [idCardFile, setIdCardFile] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -46,7 +49,6 @@ export default function DroneWorkshopForm() {
       const res = await axios.get(`${API_BASE_URL}/api/capacity`);
       setCapacity(res.data);
 
-      // Dynamic fallback if Team option gets closed
       if (!res.data.allowTeamRegistration && formData.registration_type === 'In a team') {
         setFormData(prev => ({ ...prev, registration_type: 'Alone' }));
       }
@@ -59,7 +61,6 @@ export default function DroneWorkshopForm() {
     fetchCapacity();
   }, []);
 
-  // Compute total dynamic fee based on choices
   const calculatePrice = () => {
     const isTeam = formData.registration_type === 'In a team';
     const isThapathali = formData.is_thapathali_student;
@@ -76,14 +77,49 @@ export default function DroneWorkshopForm() {
     setLoading(true);
     setMessage('');
 
-    try {
-      const payload = {
-        ...formData,
-        id_card_url: formData.is_thapathali_student ? 'https://placeholder.com/id.jpg' : null,
-        payment_slip_url: 'https://placeholder.com/slip.jpg'
-      };
+    if (!paymentSlipFile) {
+      setMessage('❌ Please upload your payment slip.');
+      setLoading(false);
+      return;
+    }
 
-      await axios.post(`${API_BASE_URL}/api/register`, payload);
+    if (formData.is_thapathali_student && !idCardFile) {
+      setMessage('❌ Please upload your Thapathali ID card proof.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Build multipart/form-data payload
+      const submissionData = new FormData();
+      
+      // Append text fields
+      submissionData.append('full_name', formData.name);
+      submissionData.append('email', formData.email);
+      submissionData.append('phone', formData.phone);
+      submissionData.append('familiarity', formData.familiarity);
+      submissionData.append('attain_goals', formData.attain_goals);
+      submissionData.append('registration_type', formData.registration_type);
+      submissionData.append('referral_source', formData.referral_source);
+      submissionData.append('is_thapathali_student', formData.is_thapathali_student);
+      submissionData.append('payment_account', formData.payment_account);
+      submissionData.append('stay_connected', formData.stay_connected);
+      submissionData.append('watch_doomsday', formData.watch_doomsday);
+
+      // Append binary files
+      if (paymentSlipFile) {
+        submissionData.append('payment_slip', paymentSlipFile);
+      }
+      if (idCardFile) {
+        submissionData.append('id_card', idCardFile);
+      }
+
+      await axios.post(`${API_BASE_URL}/api/register`, submissionData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
       setMessage('🎉 Registration Successful! Welcome to the workshop.');
       fetchCapacity();
     } catch (err) {
@@ -222,7 +258,7 @@ export default function DroneWorkshopForm() {
                   <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>1 Seat Reserved</span>
                 </div>
 
-                {/* TEAM (MODERATED WHEN TAKEN >= 36) */}
+                {/* TEAM */}
                 <div 
                   onClick={() => {
                     if (capacity.allowTeamRegistration) {
@@ -290,7 +326,13 @@ export default function DroneWorkshopForm() {
             {formData.is_thapathali_student && (
               <div className="form-group">
                 <label>Upload Campus ID Card as Proof *</label>
-                <input type="file" required className="input-field" />
+                <input 
+                  type="file" 
+                  accept="image/*,.pdf"
+                  required 
+                  className="input-field" 
+                  onChange={e => setIdCardFile(e.target.files[0])}
+                />
               </div>
             )}
 
@@ -309,7 +351,13 @@ export default function DroneWorkshopForm() {
 
             <div className="form-group">
               <label>Upload Payment Slip *</label>
-              <input type="file" required className="input-field" />
+              <input 
+                type="file" 
+                accept="image/*,.pdf"
+                required 
+                className="input-field" 
+                onChange={e => setPaymentSlipFile(e.target.files[0])}
+              />
             </div>
           </div>
 

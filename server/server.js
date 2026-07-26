@@ -2,9 +2,16 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
+
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit per file
+});
 
 // Allowed origins
 const allowedOrigins = [
@@ -34,6 +41,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Initialize Supabase Client
 const supabase = createClient(
@@ -42,6 +50,32 @@ const supabase = createClient(
 );
 
 const MAX_SEATS = 40;
+
+// Helper function to upload file buffer to Supabase Storage
+async function uploadToSupabaseStorage(file, folderPrefix) {
+  if (!file) return null;
+
+  const fileExt = file.originalname.split('.').pop();
+  const fileName = `${folderPrefix}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+  const { data, error } = await supabase.storage
+    .from('workshop-files') // Make sure this bucket is PUBLIC in Supabase
+    .upload(fileName, file.buffer, {
+      contentType: file.mimetype,
+      upsert: true
+    });
+
+  if (error) {
+    console.error(`Supabase Storage Upload Error (${folderPrefix}):`, error.message);
+    return null;
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('workshop-files')
+    .getPublicUrl(fileName);
+
+  return publicUrlData.publicUrl;
+}
 
 // GET: Calculate current live capacity
 app.get('/api/capacity', async (req, res) => {
@@ -71,89 +105,106 @@ app.get('/api/capacity', async (req, res) => {
   }
 });
 
-// POST: Submit Registration with ALL fields captured + Google Apps Script Webhook
-app.post('/api/register', async (req, res) => {
-  const body = req.body;
+// POST: Submit Registration (Supports both Multipart Form File Uploads AND raw JSON)
+app.post(
+  '/api/register',
+  upload.fields([
+    { name: 'payment_slip', maxCount: 1 },
+    { name: 'id_card', maxCount: 1 }
+  ]),
+  async (req, res) => {
+    const body = req.body;
+    const files = req.files || {};
 
-  // 1. Rigorous Field Resolution (Guarantees no critical NULL values)
-  const resolvedName = body.full_name || body.fullName || body.name;
-  
-  if (!resolvedName) {
-    return res.status(400).json({ error: 'Full name is required.' });
-  }
+    // 1. Rigorous Field Resolution
+    const resolvedName = body.full_name || body.fullName || body.name;
 
-  const resolvedIdCard = body.id_card_url || body.idCardUrl || body.idCard || null;
-  const resolvedPaymentSlip = body.payment_slip_url || body.paymentSlipUrl || body.paymentSlip || null;
-
-  const regType = body.registration_type || body.registrationType || 'Individual';
-  const isTeam = regType.toLowerCase() === 'in a team' || regType.toLowerCase() === 'team';
-  const seatsRequested = isTeam ? 5 : 1;
-
-  try {
-    // 2. Capacity Check
-    const { data, error: fetchError } = await supabase
-      .from('registrations')
-      .select('registration_type, seats_count');
-
-    if (fetchError) throw fetchError;
-
-    const currentSeatsTaken = (data || []).reduce((sum, item) => {
-      if (item.seats_count) return sum + item.seats_count;
-      return sum + (item.registration_type === 'In a team' || item.registration_type === 'team' ? 5 : 1);
-    }, 0);
-
-    if (currentSeatsTaken + seatsRequested > MAX_SEATS) {
-      return res.status(400).json({
-        error: `Capacity exceeded! Only ${MAX_SEATS - currentSeatsTaken} seats left.`
-      });
+    if (!resolvedName) {
+      return res.status(400).json({ error: 'Full name is required.' });
     }
 
-    // 3. Complete Payload mapping EVERY database column
-    const payload = {
-      full_name: resolvedName,
-      name: resolvedName, // Populate both columns so neither is ever NULL
-      email: body.email,
-      phone: body.phone,
-      college_name: body.college_name || body.collegeName || 'N/A',
-      registration_type: regType,
-      seats_count: seatsRequested,
-      referral_source: body.referral_source || body.referralSource || 'Direct',
-      payment_account: body.payment_account || body.paymentAccount || 'eSewa/Khalti',
-      id_card_url: resolvedIdCard,
-      payment_slip_url: resolvedPaymentSlip,
-      is_thapathali_student: body.is_thapathali_student ?? body.isThapathaliStudent ?? false,
-      familiarity: body.familiarity || 'Beginner',
-      attain_goals: body.attain_goals || body.attainGoals || null
-    };
+    try {
+      // 2. Upload actual binary file attachments if present, or fallback to pre-uploaded URLs
+      let paymentSlipUrl = body.payment_slip_url || body.paymentSlipUrl || null;
+      let idCardUrl = body.id_card_url || body.idCardUrl || null;
 
-    // 4. Insert into Supabase
-    const { data: insertedData, error: insertError } = await supabase
-      .from('registrations')
-      .insert([payload])
-      .select();
-
-    if (insertError) {
-      if (insertError.code === '23505') {
-        return res.status(400).json({ error: 'This email is already registered.' });
+      if (files['payment_slip'] && files['payment_slip'][0]) {
+        paymentSlipUrl = await uploadToSupabaseStorage(files['payment_slip'][0], 'payment');
       }
-      throw insertError;
-    }
 
-    // 5. Fire-and-forget sync to Google Sheets (if WEBHOOK_URL is defined in .env)
-    if (process.env.GOOGLE_SHEET_WEBHOOK_URL) {
-      fetch(process.env.GOOGLE_SHEET_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).catch(err => console.error('Sheet Webhook Error:', err.message));
-    }
+      if (files['id_card'] && files['id_card'][0]) {
+        idCardUrl = await uploadToSupabaseStorage(files['id_card'][0], 'id');
+      }
 
-    res.status(201).json({ success: true, data: insertedData });
-  } catch (err) {
-    console.error('Registration Error:', err.message);
-    res.status(500).json({ error: err.message });
+      const regType = body.registration_type || body.registrationType || 'Individual';
+      const isTeam = regType.toLowerCase() === 'in a team' || regType.toLowerCase() === 'team';
+      const seatsRequested = isTeam ? 5 : 1;
+
+      // 3. Capacity Check
+      const { data, error: fetchError } = await supabase
+        .from('registrations')
+        .select('registration_type, seats_count');
+
+      if (fetchError) throw fetchError;
+
+      const currentSeatsTaken = (data || []).reduce((sum, item) => {
+        if (item.seats_count) return sum + item.seats_count;
+        return sum + (item.registration_type === 'In a team' || item.registration_type === 'team' ? 5 : 1);
+      }, 0);
+
+      if (currentSeatsTaken + seatsRequested > MAX_SEATS) {
+        return res.status(400).json({
+          error: `Capacity exceeded! Only ${MAX_SEATS - currentSeatsTaken} seats left.`
+        });
+      }
+
+      // 4. Complete Payload mapping EVERY database column with real uploaded URLs
+      const payload = {
+        full_name: resolvedName,
+        name: resolvedName,
+        email: body.email,
+        phone: body.phone,
+        college_name: body.college_name || body.collegeName || 'N/A',
+        registration_type: regType,
+        seats_count: seatsRequested,
+        referral_source: body.referral_source || body.referralSource || 'Direct',
+        payment_account: body.payment_account || body.paymentAccount || 'eSewa/Khalti',
+        id_card_url: idCardUrl,
+        payment_slip_url: paymentSlipUrl,
+        is_thapathali_student: body.is_thapathali_student === 'true' || body.is_thapathali_student === true,
+        familiarity: body.familiarity || 'Beginner',
+        attain_goals: body.attain_goals || body.attainGoals || null
+      };
+
+      // 5. Insert into Supabase Table
+      const { data: insertedData, error: insertError } = await supabase
+        .from('registrations')
+        .insert([payload])
+        .select();
+
+      if (insertError) {
+        if (insertError.code === '23505') {
+          return res.status(400).json({ error: 'This email is already registered.' });
+        }
+        throw insertError;
+      }
+
+      // 6. Fire-and-forget sync to Google Sheets
+      if (process.env.GOOGLE_SHEET_WEBHOOK_URL) {
+        fetch(process.env.GOOGLE_SHEET_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(err => console.error('Sheet Webhook Error:', err.message));
+      }
+
+      res.status(201).json({ success: true, data: insertedData });
+    } catch (err) {
+      console.error('Registration Error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
   }
-});
+);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Backend running on port ${PORT}`));
