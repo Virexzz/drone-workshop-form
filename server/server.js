@@ -53,7 +53,6 @@ app.get('/api/capacity', async (req, res) => {
     if (error) throw error;
 
     const totalSeatsTaken = (data || []).reduce((sum, item) => {
-      // Prioritize seats_count column if present, fallback to registration_type check
       if (item.seats_count) return sum + item.seats_count;
       return sum + (item.registration_type === 'In a team' || item.registration_type === 'team' ? 5 : 1);
     }, 0);
@@ -72,14 +71,26 @@ app.get('/api/capacity', async (req, res) => {
   }
 });
 
-// POST: Submit Registration with capacity enforcement
+// POST: Submit Registration with ALL fields captured + Google Apps Script Webhook
 app.post('/api/register', async (req, res) => {
-  const regType = req.body.registration_type || req.body.registrationType || 'Individual';
+  const body = req.body;
+
+  // 1. Rigorous Field Resolution (Guarantees no critical NULL values)
+  const resolvedName = body.full_name || body.fullName || body.name;
+  
+  if (!resolvedName) {
+    return res.status(400).json({ error: 'Full name is required.' });
+  }
+
+  const resolvedIdCard = body.id_card_url || body.idCardUrl || body.idCard || null;
+  const resolvedPaymentSlip = body.payment_slip_url || body.paymentSlipUrl || body.paymentSlip || null;
+
+  const regType = body.registration_type || body.registrationType || 'Individual';
   const isTeam = regType.toLowerCase() === 'in a team' || regType.toLowerCase() === 'team';
   const seatsRequested = isTeam ? 5 : 1;
 
   try {
-    // 1. Fetch current registrations to check capacity
+    // 2. Capacity Check
     const { data, error: fetchError } = await supabase
       .from('registrations')
       .select('registration_type, seats_count');
@@ -97,30 +108,44 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    // 2. Explicitly extract and sanitize fields matching DB schema
+    // 3. Complete Payload mapping EVERY database column
     const payload = {
-      full_name: req.body.full_name || req.body.fullName,
-      email: req.body.email,
-      phone: req.body.phone,
-      college_name: req.body.college_name || req.body.collegeName,
+      full_name: resolvedName,
+      name: resolvedName, // Populate both columns so neither is ever NULL
+      email: body.email,
+      phone: body.phone,
+      college_name: body.college_name || body.collegeName || 'N/A',
       registration_type: regType,
       seats_count: seatsRequested,
-      referral_source: req.body.referral_source || req.body.referralSource || 'Direct',
-      payment_account: req.body.payment_account || req.body.paymentAccount || 'Pending/None'
+      referral_source: body.referral_source || body.referralSource || 'Direct',
+      payment_account: body.payment_account || body.paymentAccount || 'eSewa/Khalti',
+      id_card_url: resolvedIdCard,
+      payment_slip_url: resolvedPaymentSlip,
+      is_thapathali_student: body.is_thapathali_student ?? body.isThapathaliStudent ?? false,
+      familiarity: body.familiarity || 'Beginner',
+      attain_goals: body.attain_goals || body.attainGoals || null
     };
 
-    // 3. Perform insertion with complete payload
+    // 4. Insert into Supabase
     const { data: insertedData, error: insertError } = await supabase
       .from('registrations')
       .insert([payload])
       .select();
 
     if (insertError) {
-      // Handle Duplicate Registration cleanly
       if (insertError.code === '23505') {
         return res.status(400).json({ error: 'This email is already registered.' });
       }
       throw insertError;
+    }
+
+    // 5. Fire-and-forget sync to Google Sheets (if WEBHOOK_URL is defined in .env)
+    if (process.env.GOOGLE_SHEET_WEBHOOK_URL) {
+      fetch(process.env.GOOGLE_SHEET_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error('Sheet Webhook Error:', err.message));
     }
 
     res.status(201).json({ success: true, data: insertedData });
