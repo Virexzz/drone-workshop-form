@@ -48,12 +48,14 @@ app.get('/api/capacity', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('registrations')
-      .select('registration_type');
+      .select('registration_type, seats_count');
 
     if (error) throw error;
 
     const totalSeatsTaken = (data || []).reduce((sum, item) => {
-      return sum + (item.registration_type === 'In a team' ? 5 : 1);
+      // Prioritize seats_count column if present, fallback to registration_type check
+      if (item.seats_count) return sum + item.seats_count;
+      return sum + (item.registration_type === 'In a team' || item.registration_type === 'team' ? 5 : 1);
     }, 0);
 
     const availableSeats = Math.max(0, MAX_SEATS - totalSeatsTaken);
@@ -72,19 +74,21 @@ app.get('/api/capacity', async (req, res) => {
 
 // POST: Submit Registration with capacity enforcement
 app.post('/api/register', async (req, res) => {
-  const { registration_type } = req.body;
-  const seatsRequested = registration_type === 'In a team' ? 5 : 1;
+  const regType = req.body.registration_type || req.body.registrationType || 'Individual';
+  const isTeam = regType.toLowerCase() === 'in a team' || regType.toLowerCase() === 'team';
+  const seatsRequested = isTeam ? 5 : 1;
 
   try {
     // 1. Fetch current registrations to check capacity
     const { data, error: fetchError } = await supabase
       .from('registrations')
-      .select('registration_type');
+      .select('registration_type, seats_count');
 
     if (fetchError) throw fetchError;
 
     const currentSeatsTaken = (data || []).reduce((sum, item) => {
-      return sum + (item.registration_type === 'In a team' ? 5 : 1);
+      if (item.seats_count) return sum + item.seats_count;
+      return sum + (item.registration_type === 'In a team' || item.registration_type === 'team' ? 5 : 1);
     }, 0);
 
     if (currentSeatsTaken + seatsRequested > MAX_SEATS) {
@@ -93,16 +97,19 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    // 2. Explicitly extract and sanitize fields matching your DB schema columns
+    // 2. Explicitly extract and sanitize fields matching DB schema
     const payload = {
       full_name: req.body.full_name || req.body.fullName,
       email: req.body.email,
       phone: req.body.phone,
       college_name: req.body.college_name || req.body.collegeName,
-      registration_type: req.body.registration_type || req.body.registrationType
+      registration_type: regType,
+      seats_count: seatsRequested,
+      referral_source: req.body.referral_source || req.body.referralSource || 'Direct',
+      payment_account: req.body.payment_account || req.body.paymentAccount || 'Pending/None'
     };
 
-    // 3. Perform insertion with sanitized payload
+    // 3. Perform insertion with complete payload
     const { data: insertedData, error: insertError } = await supabase
       .from('registrations')
       .insert([payload])
