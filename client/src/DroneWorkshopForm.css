@@ -1,0 +1,264 @@
+/* Base Page & Global Variables */
+:root {
+  --bg-dark: #080e1a;
+  --card-bg: #101d33;
+  --gold-primary: #b9902b;
+  --gold-light: #fcd34d;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.workshop-container {
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+}
+
+.workshop-wrapper {
+  max-width: 48rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Card Section Styles */
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+.card-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.25rem;
+  color: var(--gold-primary);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* Hero Banner & Logo */
+.banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+  gap: 1rem;
+}
+
+.logo-placeholder img{
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 2px solid var(--gold-primary);
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: var(--gold-light);
+  font-weight: bold;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+}
+
+/* Capacity Badge */
+.capacity-badge {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--gold-light);
+}
+
+.progress-bar-bg {
+  width: 120px;
+  height: 8px;
+  background-color: #374151;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--gold-primary);
+  transition: width 0.4s ease;
+}
+
+/* Form Fields */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.input-field {
+  width: 100%;
+  background-color: var(--bg-dark);
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  color: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.input-field:focus {
+  border-color: var(--gold-primary);
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  margin-bottom: 0.4rem;
+  cursor: pointer;
+}
+
+/* Alone / Team Card Selector */
+.selection-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.select-card {
+  border: 1px solid #374151;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.select-card.active {
+  border-color: var(--gold-primary);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.select-card.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: #1f2937;
+}
+
+/* Payment Box & Placeholders */
+.fee-summary {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.fee-amount {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--gold-primary);
+}
+
+.qr-placeholder-box {
+  width: 180px;
+  height: 180px;
+  margin: 1rem auto;
+  border: 2px dashed rgba(245, 158, 11, 0.5);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* Submit Button & Notifications */
+.status-msg {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--gold-primary);
+  color: var(--gold-light);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #65bdae, #2fbfa6);
+  color: #000000;
+  font-weight: 800;
+  font-size: 1.125rem;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.2s ease;
+}
+
+.submit-btn:hover {
+  filter: brightness(1.1);
+}
+
+.submit-btn:active {
+  transform: scale(0.99);
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
