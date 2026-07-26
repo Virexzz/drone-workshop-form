@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './DroneWorkshopForm.css';
 import logo from './assets/rac-modified.png'; 
+import pay from './assets/done-QR.png';
 
 export default function DroneWorkshopForm() {
   const [capacity, setCapacity] = useState({
@@ -286,8 +287,8 @@ export default function DroneWorkshopForm() {
               <p style={{ fontSize: '0.85rem' }}>Scan QR code to pay via eSewa:</p>
               
               <div className="qr-placeholder-box">
-                <span style={{ fontSize: '0.7rem', color: '#fcd34d', fontWeight: 'bold' }}>[ PAYMENT QR PLACEHOLDER ]</span>
-                <span style={{ fontSize: '0.65rem', color: '#9ca3af', marginTop: '0.5rem' }}>Saroj Gaire</span>
+                <img src={pay}/>
+                <span style={{ fontSize: '1rem', color: '#9ca3af', marginTop: '0.5rem' }}>Saroj Gaire</span>
               </div>
 
               <small style={{ color: '#ef4444', fontWeight: 'bold' }}>
