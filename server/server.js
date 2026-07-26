@@ -4,18 +4,39 @@ const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 
-
 const app = express();
 
-// Configure CORS for production and local dev
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://your-vercel-app.vercel.app'],
-  methods: ['GET', 'POST'],
-  credentials: true
-}));
+// Allowed origins
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://rac-workshop.vercel.app' // Updated with your actual Vercel domain
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (e.g. Postman, curl, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+// 1. Apply CORS middleware
+app.use(cors(corsOptions));
+
+// 2. Explicitly handle Preflight OPTIONS requests for all endpoints
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 
+// Initialize Supabase Client
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
@@ -74,7 +95,7 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    // 2. Perform insertion without seats_count property
+    // 2. Perform insertion
     const { data: insertedData, error: insertError } = await supabase
       .from('registrations')
       .insert([req.body])
