@@ -10,7 +10,7 @@ const getApiBaseUrl = () => {
     return 'http://localhost:5000';
   }
   // Replace this string with your exact Render web service URL
-  return 'https://your-render-app-name.onrender.com';
+  return 'https://drone-workshop-form.onrender.com';
 };
 
 const API_BASE_URL = getApiBaseUrl();
